@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ripe Melon</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a1a0d;
+    --surface: #0f2412;
+    --border: #1e3d22;
+    --green-bright: #4ade80;
+    --green-mid: #22c55e;
+    --green-dark: #166534;
+    --white: #f0fdf4;
+    --muted: #4b7a52;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(74,222,128,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,222,128,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Header */
+  .header { text-align: center; }
+
+  .header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.6rem;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(135deg, #4ade80 0%, #86efac 50%, #fbbf24 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+  }
+
+  .header p {
+    color: var(--muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  /* How to hold instruction card */
+  .instruction-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .phone-diagram {
+    flex-shrink: 0;
+    width: 54px;
+    height: 90px;
+  }
+
+  .instruction-text h3 {
+    font-size: 0.72rem;
+    color: var(--green-bright);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .instruction-text p {
+    font-size: 0.65rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .instruction-text strong {
+    color: var(--white);
+  }
+
+  /* Melon + knock animation */
+  .melon-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 160px;
+  }
+
+  .melon-svg {
+    width: 140px;
+    height: 140px;
+    filter: drop-shadow(0 0 30px rgba(74,222,128,0.2));
+    transition: filter 0.3s ease;
+  }
+
+  .melon-svg.listening {
+    filter: drop-shadow(0 0 50px rgba(74,222,128,0.6));
+  }
+
+  /* Knock pulse rings */
+  .knock-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid rgba(74,222,128,0.6);
+    opacity: 0;
+    pointer-events: none;
+    width: 140px;
+    height: 140px;
+  }
+
+  .knock-ring.pop {
+    animation: knockPop 0.8s ease-out forwards;
+  }
+
+  .knock-ring:nth-child(2).pop { animation-delay: 0.15s; }
+  .knock-ring:nth-child(3).pop { animation-delay: 0.3s; }
+
+  @keyframes knockPop {
+    0%   { width: 140px; height: 140px; opacity: 0.8; }
+    100% { width: 280px; height: 280px; opacity: 0; }
+  }
+
+  /* Volume meter */
+  .volume-bar-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+  }
+
+  .vol-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .vol-meter {
+    height: 10px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+
+  .vol-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    width: 0%;
+    transition: width 0.05s linear;
+  }
+
+  /* FFT Canvas */
+  .visualizer-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+
+  .viz-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  canvas#fft {
+    width: 100%;
+    height: 75px;
+    display: block;
+    border-radius: 6px;
+  }
+
+  .freq-readout {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+  }
+
+  .freq-value {
+    font-size: 1.4rem;
+    font-weight: 500;
+    color: var(--green-bright);
+    letter-spacing: -0.5px;
+  }
+
+  .freq-unit {
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .freq-bar-wrap {
+    flex: 1;
+    margin: 0 14px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .freq-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #ef4444, #fbbf24, #4ade80);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .freq-range {
+    font-size: 0.6rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* Result Card */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: border-color 0.4s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+  }
+
+  .result-card.unripe   { border-color: #ef4444; }
+  .result-card.nearly   { border-color: #f97316; }
+  .result-card.ripe     { border-color: #4ade80; }
+  .result-card.overripe { border-color: #a78bfa; }
+
+  .result-card.ripe::before {
+    background: radial-gradient(ellipse at center, rgba(74,222,128,0.1) 0%, transparent 70%);
+    opacity: 1;
+  }
+
+  .result-emoji { font-size: 2.2rem; line-height: 1; }
+
+  .result-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+
+  .result-card.unripe   .result-label { color: #ef4444; }
+  .result-card.nearly   .result-label { color: #f97316; }
+  .result-card.ripe     .result-label { color: #4ade80; }
+  .result-card.overripe .result-label { color: #a78bfa; }
+
+  .result-desc {
+    font-size: 0.68rem;
+    color: var(--muted);
+    max-width: 260px;
+    line-height: 1.5;
+  }
+
+  .result-waiting {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  /* Reference Table */
+  .ref-table {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .ref-table-header {
+    padding: 10px 16px;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ref-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 9px 16px;
+    font-size: 0.68rem;
+    border-bottom: 1px solid rgba(30,61,34,0.5);
+    align-items: center;
+    transition: background 0.2s;
+  }
+
+  .ref-row:last-child { border-bottom: none; }
+  .ref-row.active { background: rgba(74,222,128,0.07); }
+
+  .ref-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .scan-btn {
+    flex: 1;
+    padding: 16px;
+    background: transparent;
+    border: 1.5px solid var(--green-mid);
+    border-radius: 12px;
+    color: var(--green-bright);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .scan-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--green-dark);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .scan-btn:hover::before { opacity: 1; }
+  .scan-btn span { position: relative; z-index: 1; }
+  .scan-btn:disabled { border-color: var(--border); color: var(--muted); cursor: not-allowed; }
+  .scan-btn:disabled::before { opacity: 0; }
+
+  .reset-btn {
+    padding: 16px 18px;
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .reset-btn:hover { border-color: var(--muted); color: var(--white); }
+
+  /* Status */
+  .status-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  .status-dot.active {
+    background: var(--green-bright);
+    box-shadow: 0 0 8px var(--green-bright);
+    animation: blink 1s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Knock detected flash */
+  .knock-flash {
+    position: fixed;
+    inset: 0;
+    background: rgba(74,222,128,0.06);
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .knock-flash.flash {
+    animation: flashAnim 0.3s ease-out forwards;
+  }
+
+  @keyframes flashAnim {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="knock-flash" id="knockFlash"></div>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Ripe Melon</h1>
+    <p>Knock · Listen · Analyze</p>
+  </div>
+
+  <!-- How to hold instruction -->
+  <div class="instruction-card">
+    <!-- Phone diagram SVG showing bottom facing melon -->
+    <svg class="phone-diagram" viewBox="0 0 54 90" xmlns="http://www.w3.org/2000/svg">
+      <!-- Phone body -->
+      <rect x="8" y="2" width="38" height="68" rx="6" fill="#1e3d22" stroke="#4ade80" stroke-width="1.5"/>
+      <!-- Screen -->
+      <rect x="12" y="8" width="30" height="48" rx="3" fill="#0a1a0d"/>
+      <!-- Ripe Melon text on screen -->
+      <text x="27" y="28" text-anchor="middle" fill="#4ade80" font-size="4" font-family="monospace">🍉 Ripe</text>
+      <text x="27" y="35" text-anchor="middle" fill="#4ade80" font-size="4" font-family="monospace">Melon</text>
+      <!-- Home bar -->
+      <rect x="20" y="62" width="14" height="2" rx="1" fill="#4ade80" opacity="0.5"/>
+      <!-- Bottom edge - speaker + mic highlighted -->
+      <rect x="8" y="70" width="38" height="8" rx="3" fill="#2d7a34"/>
+      <!-- Speaker grille dots -->
+      <circle cx="20" cy="74" r="1.2" fill="#4ade80"/>
+      <circle cx="24" cy="74" r="1.2" fill="#4ade80"/>
+      <circle cx="28" cy="74" r="1.2" fill="#4ade80"/>
+      <!-- Mic dot -->
+      <circle cx="36" cy="74" r="1.8" fill="#fbbf24"/>
+      <text x="27" y="85" text-anchor="middle" fill="#fbbf24" font-size="4.5" font-family="monospace">▼ mic</text>
+      <!-- Arrow pointing down to melon surface -->
+      <line x1="27" y1="88" x2="27" y2="94" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="2,1"/>
+    </svg>
+
+    <div class="instruction-text">
+      <h3>How to hold</h3>
+      <p>
+        Point the <strong>bottom edge</strong> of your phone toward the melon surface — mic &amp; speaker face down.<br><br>
+        Hold <strong>2–3 cm away</strong>, then <strong>tap the melon</strong> with your knuckle while listening.
+      </p>
+    </div>
+  </div>
+
+  <!-- Melon visual -->
+  <div class="melon-container" id="melonWrap">
+    <div class="knock-ring" id="ring1"></div>
+    <div class="knock-ring" id="ring2"></div>
+    <div class="knock-ring" id="ring3"></div>
+    <svg class="melon-svg" id="melonSvg" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="80" cy="84" rx="72" ry="66" fill="#1a4d1e"/>
+      <ellipse cx="80" cy="84" rx="72" ry="66" fill="none" stroke="#2d7a34" stroke-width="10" stroke-dasharray="22 18" opacity="0.5"/>
+      <ellipse cx="80" cy="86" rx="60" ry="55" fill="#e05a6a"/>
+      <ellipse cx="72" cy="74" rx="32" ry="24" fill="#f07a88" opacity="0.4"/>
+      <ellipse cx="68" cy="88" rx="5" ry="7" fill="#1a0a0a" transform="rotate(-15 68 88)"/>
+      <ellipse cx="85" cy="95" rx="5" ry="7" fill="#1a0a0a" transform="rotate(10 85 95)"/>
+      <ellipse cx="95" cy="78" rx="5" ry="7" fill="#1a0a0a" transform="rotate(-5 95 78)"/>
+      <ellipse cx="72" cy="108" rx="4" ry="6" fill="#1a0a0a" transform="rotate(20 72 108)"/>
+      <rect x="76" y="14" width="8" height="22" rx="4" fill="#2d7a34"/>
+      <ellipse cx="80" cy="14" rx="10" ry="5" fill="#1a4d1e"/>
+      <ellipse cx="80" cy="84" rx="63" ry="58" fill="none" stroke="#c8f0c8" stroke-width="4" opacity="0.15"/>
+    </svg>
+  </div>
+
+  <!-- Volume meter -->
+  <div class="volume-bar-wrap">
+    <div class="vol-label">
+      <span>▸ Mic Level</span>
+      <span id="knockCount">Knocks detected: 0</span>
+    </div>
+    <div class="vol-meter">
+      <div class="vol-fill" id="volFill"></div>
+    </div>
+  </div>
+
+  <!-- FFT Visualizer -->
+  <div class="visualizer-wrap">
+    <div class="viz-label">▸ Frequency Spectrum</div>
+    <canvas id="fft" width="800" height="150"></canvas>
+    <div class="freq-readout">
+      <div>
+        <span class="freq-value" id="freqDisplay">—</span>
+        <span class="freq-unit">Hz</span>
+      </div>
+      <div class="freq-bar-wrap">
+        <div class="freq-bar-fill" id="freqBar"></div>
+      </div>
+      <div class="freq-range">80 – 500 Hz</div>
+    </div>
+  </div>
+
+  <!-- Result Card -->
+  <div class="result-card" id="resultCard">
+    <div class="result-waiting">
+      Press <strong style="color:var(--green-bright)">Listen</strong> then knock the melon<br>with your knuckle 2–3 times
+    </div>
+  </div>
+
+  <!-- Reference Table -->
+  <div class="ref-table">
+    <div class="ref-table-header">Ripeness Reference Table</div>
+    <div class="ref-row" id="row-unripe">
+      <span><span class="ref-dot" style="background:#ef4444"></span>Unripe</span>
+      <span style="color:#6b7280">&lt; 150 Hz</span>
+      <span style="color:#6b7280">Dull thud</span>
+    </div>
+    <div class="ref-row" id="row-nearly">
+      <span><span class="ref-dot" style="background:#f97316"></span>Nearly Ripe</span>
+      <span style="color:#6b7280">150–230 Hz</span>
+      <span style="color:#6b7280">Getting there</span>
+    </div>
+    <div class="ref-row" id="row-ripe">
+      <span><span class="ref-dot" style="background:#4ade80"></span>Ripe 🍉</span>
+      <span style="color:#6b7280">230–350 Hz</span>
+      <span style="color:#6b7280">Hollow ring</span>
+    </div>
+    <div class="ref-row" id="row-overripe">
+      <span><span class="ref-dot" style="background:#a78bfa"></span>Overripe</span>
+      <span style="color:#6b7280">&gt; 350 Hz</span>
+      <span style="color:#6b7280">High pitch</span>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-row">
+    <button class="scan-btn" id="scanBtn" onclick="startListening()">
+      <span id="btnText">🎙 Listen</span>
+    </button>
+    <button class="reset-btn" onclick="resetAll()">↺</button>
+  </div>
+
+  <!-- Status -->
+  <div class="status-row">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Ready — press Listen, then knock the melon</span>
+  </div>
+
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+let audioCtx = null;
+let analyser = null;
+let micStream = null;
+let animFrame = null;
+let listening = false;
+let knockCount = 0;
+let peakHistory = [];
+let lastKnockTime = 0;
+let listenTimer = null;
+
+const LISTEN_DURATION_MS = 6000; // 6 seconds to knock 2-3 times
+const KNOCK_THRESHOLD = 0.15;    // volume threshold to detect knock
+const KNOCK_COOLDOWN_MS = 400;   // minimum ms between knocks
+
+// ─── DOM Refs ─────────────────────────────────────────────
+const canvas     = document.getElementById('fft');
+const ctx2d      = canvas.getContext('2d');
+const freqDisp   = document.getElementById('freqDisplay');
+const freqBar    = document.getElementById('freqBar');
+const resultCard = document.getElementById('resultCard');
+const scanBtn    = document.getElementById('scanBtn');
+const btnText    = document.getElementById('btnText');
+const statusDot  = document.getElementById('statusDot');
+const statusTxt  = document.getElementById('statusText');
+const melonSvg   = document.getElementById('melonSvg');
+const volFill    = document.getElementById('volFill');
+const knockCountEl = document.getElementById('knockCount');
+const knockFlash = document.getElementById('knockFlash');
+const ring1 = document.getElementById('ring1');
+const ring2 = document.getElementById('ring2');
+const ring3 = document.getElementById('ring3');
+
+// ─── Ripeness Table ───────────────────────────────────────
+const RIPENESS = [
+  { id:'unripe',   label:'Unripe',       emoji:'🟢', min:0,   max:150,
+    desc:'Dull thud — still firm. Needs more time.',
+    cls:'unripe' },
+  { id:'nearly',   label:'Nearly Ripe',  emoji:'🟡', min:150, max:230,
+    desc:'Getting close! A few more days.',
+    cls:'nearly' },
+  { id:'ripe',     label:'Perfect Ripe', emoji:'🍉', min:230, max:350,
+    desc:'Hollow ring — sweet spot! Buy it now.',
+    cls:'ripe' },
+  { id:'overripe', label:'Overripe',     emoji:'🟣', min:350, max:9999,
+    desc:'High pitch — likely mushy inside.',
+    cls:'overripe' },
+];
+
+function getRipeness(hz) {
+  return RIPENESS.find(r => hz >= r.min && hz < r.max) || RIPENESS[0];
+}
+
+// ─── UI Helpers ───────────────────────────────────────────
+function setStatus(text, active=false) {
+  statusTxt.textContent = text;
+  statusDot.classList.toggle('active', active);
+}
+
+function highlightRow(id) {
+  document.querySelectorAll('.ref-row').forEach(r => r.classList.remove('active'));
+  if (id) document.getElementById('row-' + id)?.classList.add('active');
+}
+
+function showResult(hz) {
+  const r = getRipeness(hz);
+  resultCard.className = 'result-card ' + r.cls;
+  resultCard.innerHTML = `
+    <div class="result-emoji">${r.emoji}</div>
+    <div class="result-label">${r.label}</div>
+    <div class="result-desc">${r.desc}</div>
+    <div style="font-size:0.6rem;color:var(--muted);margin-top:4px">Based on ${knockCount} knock${knockCount>1?'s':''} · ${Math.round(hz)} Hz</div>
+  `;
+  highlightRow(r.id);
+}
+
+function triggerKnockVisual() {
+  // Flash screen
+  knockFlash.classList.remove('flash');
+  void knockFlash.offsetWidth;
+  knockFlash.classList.add('flash');
+
+  // Ripple rings
+  [ring1, ring2, ring3].forEach(r => {
+    r.classList.remove('pop');
+    void r.offsetWidth;
+    r.classList.add('pop');
+  });
+}
+
+// ─── FFT Drawing ──────────────────────────────────────────
+function drawFFT(dataArray, sampleRate, peakHz) {
+  const W = canvas.width, H = canvas.height;
+  ctx2d.fillStyle = '#0a1a0d';
+  ctx2d.fillRect(0, 0, W, H);
+
+  const minHz = 60, maxHz = 600;
+  const minBin = Math.floor(minHz / (sampleRate / analyser.fftSize));
+  const maxBin = Math.floor(maxHz / (sampleRate / analyser.fftSize));
+  const bins = maxBin - minBin;
+
+  // Zone dividers
+  [150, 230, 350].forEach(hz => {
+    const x = ((hz - minHz) / (maxHz - minHz)) * W;
+    ctx2d.strokeStyle = 'rgba(74,222,128,0.12)';
+    ctx2d.lineWidth = 1;
+    ctx2d.setLineDash([4, 4]);
+    ctx2d.beginPath(); ctx2d.moveTo(x, 0); ctx2d.lineTo(x, H); ctx2d.stroke();
+    ctx2d.setLineDash([]);
+  });
+
+  // Bars
+  const barW = W / bins;
+  for (let i = 0; i < bins; i++) {
+    const bin = i + minBin;
+    const hz  = bin * sampleRate / analyser.fftSize;
+    const val = dataArray[bin] / 255;
+    const barH = val * H;
+    let color;
+    if      (hz < 150) color = '#ef4444';
+    else if (hz < 230) color = '#f97316';
+    else if (hz < 350) color = '#4ade80';
+    else               color = '#a78bfa';
+    ctx2d.fillStyle = color;
+    ctx2d.globalAlpha = 0.6 + val * 0.4;
+    ctx2d.fillRect(i * barW, H - barH, barW - 1, barH);
+  }
+  ctx2d.globalAlpha = 1;
+
+  // Peak marker
+  if (peakHz >= minHz && peakHz <= maxHz) {
+    const px = ((peakHz - minHz) / (maxHz - minHz)) * W;
+    ctx2d.strokeStyle = '#fff';
+    ctx2d.lineWidth = 2;
+    ctx2d.beginPath(); ctx2d.moveTo(px, 0); ctx2d.lineTo(px, H); ctx2d.stroke();
+    ctx2d.fillStyle = '#fff';
+    ctx2d.font = '500 11px DM Mono, monospace';
+    ctx2d.fillText(Math.round(peakHz) + ' Hz', Math.min(px + 4, W - 60), 14);
+  }
+}
+
+// ─── Get RMS volume ──────────────────────────────────────
+function getRMS(timeDomain) {
+  let sum = 0;
+  for (let i = 0; i < timeDomain.length; i++) {
+    const v = (timeDomain[i] / 128) - 1;
+    sum += v * v;
+  }
+  return Math.sqrt(sum / timeDomain.length);
+}
+
+// ─── Find Peak Hz (ignoring very low frequencies) ────────
+function findPeakHz(dataArray, sampleRate) {
+  const minHz = 100, maxHz = 500;
+  const minBin = Math.floor(minHz / (sampleRate / analyser.fftSize));
+  const maxBin = Math.floor(maxHz / (sampleRate / analyser.fftSize));
+  let maxVal = -1, maxBin2 = minBin;
+  for (let i = minBin; i <= maxBin; i++) {
+    if (dataArray[i] > maxVal) { maxVal = dataArray[i]; maxBin2 = i; }
+  }
+  return maxBin2 * sampleRate / analyser.fftSize;
+}
+
+// ─── Main Listen Loop ────────────────────────────────────
+function listenLoop(startTime, sampleRate) {
+  if (!listening) return;
+
+  const now = performance.now();
+  const elapsed = now - startTime;
+  const remaining = Math.max(0, Math.ceil((LISTEN_DURATION_MS - elapsed) / 1000));
+
+  const freqData = new Uint8Array(analyser.frequencyBinCount);
+  const timeData = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(freqData);
+  analyser.getByteTimeDomainData(timeData);
+
+  const rms = getRMS(timeData);
+  const peakHz = findPeakHz(freqData, sampleRate);
+
+  // Update volume meter
+  volFill.style.width = Math.min(rms * 400, 100) + '%';
+
+  // Draw FFT
+  drawFFT(freqData, sampleRate, peakHz);
+
+  // Detect knock — significant volume spike
+  const nowMs = performance.now();
+  if (rms > KNOCK_THRESHOLD && (nowMs - lastKnockTime) > KNOCK_COOLDOWN_MS) {
+    lastKnockTime = nowMs;
+    knockCount++;
+    knockCountEl.textContent = `Knocks detected: ${knockCount}`;
+    peakHistory.push(peakHz);
+    triggerKnockVisual();
+
+    freqDisp.textContent = Math.round(peakHz);
+    const pct = ((peakHz - 80) / (500 - 80)) * 100;
+    freqBar.style.width = Math.min(pct, 100) + '%';
+
+    setStatus(`Knock ${knockCount} detected! Keep going…`, true);
+  }
+
+  // Update countdown in button
+  if (listening) {
+    btnText.textContent = `Listening… ${remaining}s`;
+  }
+
+  if (elapsed < LISTEN_DURATION_MS) {
+    animFrame = requestAnimationFrame(() => listenLoop(startTime, sampleRate));
+  } else {
+    finishListening();
+  }
+}
+
+// ─── Finish ───────────────────────────────────────────────
+function finishListening() {
+  listening = false;
+  melonSvg.classList.remove('listening');
+
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
+  }
+
+  volFill.style.width = '0%';
+  scanBtn.disabled = false;
+  btnText.textContent = '🎙 Listen Again';
+
+  if (knockCount === 0) {
+    setStatus('No knock detected. Try again.', false);
+    resultCard.className = 'result-card';
+    resultCard.innerHTML = '<div class="result-waiting">No knock detected.<br>Press Listen and tap the melon with your knuckle.</div>';
+    return;
+  }
+
+  // Median of knock peaks
+  peakHistory.sort((a, b) => a - b);
+  const median = peakHistory[Math.floor(peakHistory.length / 2)];
+
+  freqDisp.textContent = Math.round(median);
+  const pct = ((median - 80) / (500 - 80)) * 100;
+  freqBar.style.width = Math.min(pct, 100) + '%';
+
+  showResult(median);
+  setStatus(`Done · ${knockCount} knock${knockCount>1?'s':''} analyzed`, false);
+}
+
+// ─── Start Listening ─────────────────────────────────────
+async function startListening() {
+  if (listening) return;
+  listening = true;
+  knockCount = 0;
+  peakHistory = [];
+  lastKnockTime = 0;
+  knockCountEl.textContent = 'Knocks detected: 0';
+
+  resultCard.className = 'result-card';
+  resultCard.innerHTML = '<div class="result-waiting">🎙 Listening…<br><strong style="color:var(--green-bright)">Knock the melon now!</strong></div>';
+  highlightRow(null);
+  freqDisp.textContent = '—';
+  freqBar.style.width = '0%';
+
+  scanBtn.disabled = true;
+  btnText.textContent = 'Requesting mic…';
+  setStatus('Requesting microphone…', true);
+
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    });
+
+    const source = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 4096;
+    analyser.smoothingTimeConstant = 0.3;
+    source.connect(analyser);
+
+    const sampleRate = audioCtx.sampleRate;
+
+    melonSvg.classList.add('listening');
+    setStatus('Listening — knock the melon!', true);
+    btnText.textContent = `Listening… 6s`;
+
+    listenLoop(performance.now(), sampleRate);
+
+  } catch (err) {
+    listening = false;
+    scanBtn.disabled = false;
+    btnText.textContent = '🎙 Listen';
+    setStatus('Mic access denied', false);
+    resultCard.className = 'result-card';
+    resultCard.innerHTML = `<div class="result-waiting">⚠ ${err.message || 'Microphone permission required'}</div>`;
+  }
+}
+
+// ─── Reset ────────────────────────────────────────────────
+function resetAll() {
+  if (listening) {
+    listening = false;
+    cancelAnimationFrame(animFrame);
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  }
+  knockCount = 0;
+  peakHistory = [];
+  knockCountEl.textContent = 'Knocks detected: 0';
+  freqDisp.textContent = '—';
+  freqBar.style.width = '0%';
+  volFill.style.width = '0%';
+  melonSvg.classList.remove('listening');
+  scanBtn.disabled = false;
+  btnText.textContent = '🎙 Listen';
+  resultCard.className = 'result-card';
+  resultCard.innerHTML = '<div class="result-waiting">Press <strong style="color:var(--green-bright)">Listen</strong> then knock the melon<br>with your knuckle 2–3 times</div>';
+  highlightRow(null);
+  setStatus('Ready — press Listen, then knock the melon', false);
+  drawIdle();
+}
+
+// ─── Idle draw ────────────────────────────────────────────
+function drawIdle() {
+  const W = canvas.width, H = canvas.height;
+  ctx2d.fillStyle = '#0a1a0d';
+  ctx2d.fillRect(0, 0, W, H);
+  [150, 230, 350].forEach(hz => {
+    const x = ((hz - 60) / (600 - 60)) * W;
+    ctx2d.strokeStyle = 'rgba(74,222,128,0.1)';
+    ctx2d.lineWidth = 1;
+    ctx2d.setLineDash([4,4]);
+    ctx2d.beginPath(); ctx2d.moveTo(x,0); ctx2d.lineTo(x,H); ctx2d.stroke();
+    ctx2d.setLineDash([]);
+  });
+  for (let i = 0; i < W; i++) {
+    ctx2d.fillStyle = 'rgba(74,222,128,0.12)';
+    ctx2d.fillRect(i, H - (Math.random() * 5 + 2), 1, Math.random() * 5 + 2);
+  }
+}
+drawIdle();
+</script>
+</body>
+</html>
